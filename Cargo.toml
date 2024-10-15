@@ -11,12 +11,17 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/dtolnay/typetag"
 rust-version = "1.62"
 
+[features]
+default = ["inventory"]
+runtime = ["typetag-impl/runtime"]
+
 [workspace]
 members = ["impl"]
 
 [dependencies]
+cfg-if = "1.0.0"
 erased-serde = { version = "0.4", default-features = false, features = ["alloc"] }
-inventory = "0.3.10"
+inventory = { version = "0.3.10", optional = true }
 once_cell = { version = "1.18", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.166", default-features = false, features = ["alloc", "derive"] }
 typetag-impl = { version = "=0.2.18", path = "impl" }

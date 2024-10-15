@@ -314,6 +314,7 @@ mod de;
 mod externally;
 mod internally;
 mod is_serialize_str;
+mod registry;
 mod ser;
 
 use self::__private as private;
@@ -341,6 +342,7 @@ impl<T> Deserialize for T {}
 pub mod __private {
     #[doc(hidden)]
     pub extern crate erased_serde;
+    #[cfg(feature="inventory")]
     #[doc(hidden)]
     pub extern crate inventory;
     #[doc(hidden)]
@@ -387,15 +389,19 @@ pub mod __private {
         fn(&mut dyn erased_serde::Deserializer) -> erased_serde::Result<Box<T>>;
 
     #[doc(hidden)]
-    pub struct Registry<T: ?Sized> {
-        #[doc(hidden)]
-        pub map: BTreeMap<&'static str, Option<DeserializeFn<T>>>,
-        #[doc(hidden)]
-        pub names: Vec<&'static str>,
-    }
+    pub use crate::registry::Registry;
+
+    #[doc(hidden)]
+    pub use crate::registry::DeserializerRegistry;
 
     #[doc(hidden)]
     pub trait Strictest {
         type Object: ?Sized;
+    }
+
+    #[doc(hidden)]
+    pub mod registry {
+        #[doc(hidden)]
+        pub use crate::registry::*;
     }
 }

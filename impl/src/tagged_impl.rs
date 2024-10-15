@@ -23,26 +23,18 @@ pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenSt
 
     augment_impl(&mut input, &name, mode);
 
-    let object = &input.trait_.as_ref().unwrap().1;
-    let this = &input.self_ty;
+    cfg_if::cfg_if! {
+        if #[cfg(feature="runtime")] {
+            augment_impl_register(&mut input, &name, mode);
 
-    let mut expanded = quote! {
-        #input
-    };
+            let expanded = quote! { #input };
+        } else {
+            let mut expanded = quote! {
+                #input
+            };
 
-    if mode.de {
-        expanded.extend(quote! {
-            typetag::__private::inventory::submit! {
-                <dyn #object>::typetag_register(
-                    #name,
-                    (|deserializer| typetag::__private::Result::Ok(
-                        typetag::__private::Box::new(
-                            typetag::__private::erased_serde::deserialize::<#this>(deserializer)?
-                        ),
-                    )) as typetag::__private::DeserializeFn<<dyn #object as typetag::__private::Strictest>::Object>,
-                )
-            }
-        });
+            register_inventory(&mut input, &name, &mut expanded);
+        }
     }
 
     expanded
@@ -64,6 +56,48 @@ fn augment_impl(input: &mut ItemImpl, name: &TokenStream, mode: Mode) {
             fn typetag_deserialize(&self) {}
         });
     }
+}
+
+
+#[cfg(feature="runtime")]
+fn augment_impl_register(input: &mut ItemImpl, name: &TokenStream, mode: Mode) {
+    let object = &input.trait_.as_ref().unwrap().1;
+    let this = &input.self_ty;
+
+    if mode.de {
+        expanded.extend(quote! {
+            typetag::__private::inventory::submit! {
+                <dyn #object>::typetag_register(
+                    #name,
+                    (|deserializer| typetag::__private::Result::Ok(
+                        typetag::__private::Box::new(
+                            typetag::__private::erased_serde::deserialize::<#this>(deserializer)?
+                        ),
+                    )) as typetag::__private::DeserializeFn<<dyn #object as typetag::__private::Strictest>::Object>,
+                )
+            }
+        });
+    }
+}
+
+#[cfg(not(feature="runtime"))]
+fn register_inventory(input: &mut ItemImpl, name: &TokenStream, expanded: &mut TokenStream) {
+    let object = &input.trait_.as_ref().unwrap().1;
+    let this = &input.self_ty;
+
+    expanded.extend(quote! {
+        typetag::__private::inventory::submit! {
+            #![crate = typetag]
+            <dyn #object>::typetag_register(
+                #name,
+                |deserializer| std::result::Result::Ok(
+                    std::boxed::Box::new(
+                        typetag::erased_serde::deserialize::<#this>(deserializer)?
+                    ),
+                ),
+            )
+        }
+    });
 }
 
 fn type_name(mut ty: &Type) -> Option<String> {
