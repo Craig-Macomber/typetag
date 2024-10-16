@@ -304,8 +304,25 @@ mod other_types {
         fn assert_is_c(&self) {}
     }
 
+    cfg_if::cfg_if! {
+        if #[cfg(feature="runtime")] {
+            static REGISTER_ONCE: std::sync::Once = std::sync::Once::new();
+            fn register_all() {
+                REGISTER_ONCE.call_once(|| {
+                    <A as Trait>::register();
+                    <B as Trait>::register();
+                    <C as Trait>::register();
+                });
+            }
+        } else {
+            fn register_all() {}
+        }
+    }
+
+
     #[test]
     fn test_json_round_trip() {
+        register_all();
         let trait_object = &A {} as &dyn Trait;
         let json = serde_json::to_string(trait_object).unwrap();
         let expected = r#"{"A":{}}"#;
@@ -330,6 +347,7 @@ mod other_types {
 
     #[test]
     fn test_postcard_round_trip() {
+        register_all();
         let trait_object = &A {} as &dyn Trait;
         let bytes = postcard::to_stdvec(trait_object).unwrap();
         let trait_object: Box<dyn Trait> = postcard::from_bytes(&bytes).unwrap();
@@ -376,8 +394,23 @@ mod internal_with_default {
         }
     }
 
+    cfg_if::cfg_if! {
+        if #[cfg(feature="runtime")] {
+            static REGISTER_ONCE: std::sync::Once = std::sync::Once::new();
+            fn register_all() {
+                REGISTER_ONCE.call_once(|| {
+                    <A as Trait>::register();
+                    <B as Trait>::register();
+                });
+            }
+        } else {
+            fn register_all() {}
+        }
+    }
+
     #[test]
     fn test_json_deserialize_default_variant() {
+        register_all();
         let json = r#"{"a":11}"#;
         let trait_object: Box<dyn Trait> = serde_json::from_str(json).unwrap();
         trait_object.assert_a_is_11();
@@ -385,6 +418,7 @@ mod internal_with_default {
 
     #[test]
     fn test_json_deserialize_named_variant() {
+        register_all();
         let json = r#"{"type":"B","b":11}"#;
         let trait_object: Box<dyn Trait> = serde_json::from_str(json).unwrap();
         trait_object.assert_b_is_11();
@@ -393,6 +427,20 @@ mod internal_with_default {
 
 mod adjacent_with_default {
     use super::{A, B};
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature="runtime")] {
+            static REGISTER_ONCE: std::sync::Once = std::sync::Once::new();
+            fn register_all() {
+                REGISTER_ONCE.call_once(|| {
+                    <A as Trait>::register();
+                    <B as Trait>::register();
+                });
+            }
+        } else {
+            fn register_all() {}
+        }
+    }
 
     #[typetag::serde(tag = "type", content = "content", default_variant = "A")]
     trait Trait {
@@ -422,6 +470,7 @@ mod adjacent_with_default {
 
     #[test]
     fn test_json_deserialize_default_variant() {
+        register_all();
         let json = r#"{"content":{"a":11}}"#;
         let trait_object: Box<dyn Trait> = serde_json::from_str(json).unwrap();
         trait_object.assert_a_is_11();
@@ -429,6 +478,7 @@ mod adjacent_with_default {
 
     #[test]
     fn test_json_deserialize_named_variant() {
+        register_all();
         let json = r#"{"type":"B","content":{"b":11}}"#;
         let trait_object: Box<dyn Trait> = serde_json::from_str(json).unwrap();
         trait_object.assert_b_is_11();
@@ -447,8 +497,23 @@ mod adjacent_deny_unknown {
     #[typetag::serde]
     impl Trait for B {}
 
+    cfg_if::cfg_if! {
+        if #[cfg(feature="runtime")] {
+            static REGISTER_ONCE: std::sync::Once = std::sync::Once::new();
+            fn register_all() {
+                REGISTER_ONCE.call_once(|| {
+                    <A as Trait>::register();
+                    <B as Trait>::register();
+                });
+            }
+        } else {
+            fn register_all() {}
+        }
+    }
+
     #[test]
     fn test_json_deserialize_deny_unknown() {
+        register_all();
         let json = r#"{"type":"B","content":{"b":11},"unknown":null}"#;
         match serde_json::from_str::<Box<dyn Trait>>(json) {
             Ok(_) => panic!("unexpectedly deserialized successfully despite unknown field"),

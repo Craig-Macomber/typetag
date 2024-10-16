@@ -296,7 +296,9 @@
 //! [`ctor`]: https://github.com/mmastrac/rust-ctor
 //! [`erased-serde`]: https://github.com/dtolnay/erased-serde
 
-#![no_std]
+
+#![cfg_attr(not(feature = "runtime"), no_std)]
+
 #![doc(html_root_url = "https://docs.rs/typetag/0.2.18")]
 #![allow(
     clippy::missing_errors_doc,
@@ -389,10 +391,7 @@ pub mod __private {
         fn(&mut dyn erased_serde::Deserializer) -> erased_serde::Result<Box<T>>;
 
     #[doc(hidden)]
-    pub use crate::registry::Registry;
-
-    #[doc(hidden)]
-    pub use crate::registry::DeserializerRegistry;
+    pub use crate::registry::{Registry, DeserializerRegistry};
 
     #[doc(hidden)]
     pub trait Strictest {

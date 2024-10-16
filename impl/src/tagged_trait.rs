@@ -186,6 +186,7 @@ fn build_registry(input: &ItemTrait) -> TokenStream {
     }
 }
 
+#[cfg(not(feature = "runtime"))]
 fn static_registry() -> TokenStream {
     quote! {
         static TYPETAG: typetag::__private::once_cell::race::OnceBox<typetag::__private::Registry<TypetagStrictest>> = typetag::__private::once_cell::race::OnceBox::new();
@@ -210,12 +211,20 @@ fn static_registry() -> TokenStream {
 }
 
 #[cfg(feature = "runtime")]
+fn static_registry() -> TokenStream {
+    quote! {
+        let registry = TYPETAG.get_or_init(|| { Box::new(typetag::__private::Registry::default()) });
+    }
+}
+
+
+#[cfg(feature = "runtime")]
 fn build_registry(input: &ItemTrait) -> TokenStream {
     let object = &input.ident;
 
     quote! {
-        type TypetagStrictest = <dyn #object as typetag::Strictest>::Object;
-        type TypetagFn = typetag::DeserializeFn<TypetagStrictest>;
+        type TypetagStrictest = <dyn #object as typetag::__private::Strictest>::Object;
+        type TypetagFn = typetag::__private::DeserializeFn<TypetagStrictest>;
 
         pub struct TypetagRegistration {
             name: &'static str,
@@ -227,7 +236,10 @@ fn build_registry(input: &ItemTrait) -> TokenStream {
             pub fn typetag_register(name: &'static str, deserializer: TypetagFn) -> () {
                 let registered = TypetagRegistration { name, deserializer };
 
-                let mut registry = TYPETAG.write().unwrap();
+                let registry = TYPETAG.get_or_init(|| {
+                    Box::new(typetag::__private::Registry::default())
+                });
+                let mut registry = registry.write().unwrap();
                 match registry.map.entry(registered.name) {
                     std::collections::btree_map::Entry::Vacant(entry) => {
                         entry.insert(std::option::Option::Some(registered.deserializer));
@@ -241,12 +253,7 @@ fn build_registry(input: &ItemTrait) -> TokenStream {
             }
         }
 
-
-        typetag::lazy_static::lazy_static! {
-            static ref TYPETAG: typetag::Registry<TypetagStrictest> = {
-                typetag::Registry::default()
-            };
-        }
+        static TYPETAG: typetag::__private::once_cell::race::OnceBox<typetag::__private::Registry<TypetagStrictest>> = typetag::__private::once_cell::race::OnceBox::new();
     }
 }
 

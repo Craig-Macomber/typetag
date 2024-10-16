@@ -33,7 +33,9 @@ pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenSt
                 #input
             };
 
-            register_inventory(&mut input, &name, &mut expanded);
+            if mode.de {
+                register_inventory(&mut input, &name, &mut expanded);
+            }
         }
     }
 
@@ -65,6 +67,27 @@ fn augment_impl_register(input: &mut ItemImpl, name: &TokenStream, mode: Mode) {
     let this = &input.self_ty;
 
     if mode.de {
+        input.items.push(parse_quote! {
+            #[doc(hidden)]
+            fn register() {
+                <dyn #object>::typetag_register(
+                    #name,
+                    |deserializer| typetag::__private::Result::Ok(
+                        typetag::__private::Box::new(
+                            typetag::__private::erased_serde::deserialize::<#this>(deserializer)?
+                        ),
+                    ),
+                )
+            }
+        });
+    }
+}
+
+#[cfg(not(feature="runtime"))]
+fn register_inventory(input: &mut ItemImpl, name: &TokenStream, expanded: &mut TokenStream) {
+    let object = &input.trait_.as_ref().unwrap().1;
+    let this = &input.self_ty;
+    
         expanded.extend(quote! {
             typetag::__private::inventory::submit! {
                 <dyn #object>::typetag_register(
@@ -77,27 +100,6 @@ fn augment_impl_register(input: &mut ItemImpl, name: &TokenStream, mode: Mode) {
                 )
             }
         });
-    }
-}
-
-#[cfg(not(feature="runtime"))]
-fn register_inventory(input: &mut ItemImpl, name: &TokenStream, expanded: &mut TokenStream) {
-    let object = &input.trait_.as_ref().unwrap().1;
-    let this = &input.self_ty;
-
-    expanded.extend(quote! {
-        typetag::__private::inventory::submit! {
-            #![crate = typetag]
-            <dyn #object>::typetag_register(
-                #name,
-                |deserializer| std::result::Result::Ok(
-                    std::boxed::Box::new(
-                        typetag::erased_serde::deserialize::<#this>(deserializer)?
-                    ),
-                ),
-            )
-        }
-    });
 }
 
 fn type_name(mut ty: &Type) -> Option<String> {

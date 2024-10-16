@@ -1,6 +1,6 @@
 use std::sync::RwLock;
 
-use crate::{DeserializeFn, DeserializerRegistry};
+use crate::private::{DeserializeFn, DeserializerRegistry};
 use serde::de::{self, Expected};
 
 use super::common::Registry as InnerRegistry;
@@ -14,7 +14,7 @@ impl<T: ?Sized> Default for Registry<T> {
     }
 }
 
-impl<T: ?Sized> std::ops::Deref for Registry<T> {
+impl<T: ?Sized> core::ops::Deref for Registry<T> {
     type Target = RwLock<InnerRegistry<T>>;
 
     fn deref(&self) -> &Self::Target {

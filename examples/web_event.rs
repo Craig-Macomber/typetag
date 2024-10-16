@@ -31,6 +31,9 @@ impl WebEvent for Click {
 }
 
 fn main() -> serde_json::Result<()> {
+    <PageLoad as WebEvent>::register();
+    <Click as WebEvent>::register();
+
     let page_load = PageLoad;
     let event = &page_load as &dyn WebEvent;
     let json = serde_json::to_string(event)?;
